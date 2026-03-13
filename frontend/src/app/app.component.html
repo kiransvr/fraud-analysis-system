@@ -1,0 +1,152 @@
+<main class="page-shell">
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">AI FRAUD DETECTION ANALYTICS</p>
+      <h1>Risk Operations Dashboard</h1>
+      <p class="subcopy">Live scoring feed from Spring API + ML model service.</p>
+    </div>
+    <button class="refresh-button" (click)="refreshDashboard()" [disabled]="isLoading">Refresh</button>
+  </header>
+
+  <section class="metrics-grid">
+    <article class="metric-card metric-primary">
+      <p>Total Transactions</p>
+      <h2>{{ transactions.length }}</h2>
+    </article>
+    <article class="metric-card metric-warning">
+      <p>High Risk</p>
+      <h2>{{ highRiskCount() }}</h2>
+    </article>
+    <article class="metric-card metric-neutral">
+      <p>Open Alerts</p>
+      <h2>{{ alerts.length }}</h2>
+    </article>
+    <article class="metric-card metric-info">
+      <p>Avg Probability</p>
+      <h2>{{ avgProbability() }}</h2>
+    </article>
+  </section>
+
+  <section class="panel form-panel">
+    <div class="panel-title-row">
+      <h3>Submit Transaction</h3>
+      <span class="badge">Real-time Scoring</span>
+    </div>
+
+    <form (ngSubmit)="submitTransaction()" #txForm="ngForm" class="tx-form">
+      <label>
+        External Transaction ID
+        <input name="externalTransactionId" [(ngModel)]="transactionForm.externalTransactionId" required />
+      </label>
+      <label>
+        Customer ID
+        <input name="customerId" [(ngModel)]="transactionForm.customerId" required />
+      </label>
+      <label>
+        Device ID
+        <input name="deviceId" [(ngModel)]="transactionForm.deviceId" />
+      </label>
+      <label>
+        Amount
+        <input type="number" step="0.01" min="0.01" name="amount" [(ngModel)]="transactionForm.amount" required />
+      </label>
+      <label>
+        Currency
+        <input name="currencyCode" maxlength="3" [(ngModel)]="transactionForm.currencyCode" required />
+      </label>
+      <label>
+        Merchant ID
+        <input name="merchantId" [(ngModel)]="transactionForm.merchantId" />
+      </label>
+      <label>
+        Merchant Category
+        <input name="merchantCategory" [(ngModel)]="transactionForm.merchantCategory" />
+      </label>
+      <label>
+        Channel
+        <input name="channel" [(ngModel)]="transactionForm.channel" />
+      </label>
+      <label>
+        Country
+        <input name="countryCode" maxlength="2" [(ngModel)]="transactionForm.countryCode" />
+      </label>
+
+      <button type="submit" [disabled]="txForm.invalid || isSubmitting">
+        {{ isSubmitting ? 'Scoring...' : 'Submit & Score' }}
+      </button>
+    </form>
+
+    <p class="status success" *ngIf="successMessage">{{ successMessage }}</p>
+    <p class="status error" *ngIf="errorMessage">{{ errorMessage }}</p>
+  </section>
+
+  <section class="split-grid">
+    <article class="panel">
+      <div class="panel-title-row">
+        <h3>Recent Alerts</h3>
+        <span class="badge">{{ alerts.length }} items</span>
+      </div>
+      <div class="table-wrap" *ngIf="alerts.length > 0; else noAlerts">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Transaction</th>
+              <th>Severity</th>
+              <th>Status</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let alert of alerts">
+              <td>{{ alert.id }}</td>
+              <td>{{ alert.externalTransactionId }}</td>
+              <td><span class="pill pill-high">{{ alert.severity }}</span></td>
+              <td>{{ alert.status }}</td>
+              <td>{{ alert.reason }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #noAlerts>
+        <p class="empty-state">No alerts yet.</p>
+      </ng-template>
+    </article>
+
+    <article class="panel">
+      <div class="panel-title-row">
+        <h3>Recent Transactions</h3>
+        <span class="badge">{{ transactions.length }} items</span>
+      </div>
+      <div class="table-wrap" *ngIf="transactions.length > 0; else noTransactions">
+        <table>
+          <thead>
+            <tr>
+              <th>Transaction</th>
+              <th>Amount</th>
+              <th>Risk</th>
+              <th>Probability</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let tx of transactions">
+              <td>{{ tx.externalTransactionId }}</td>
+              <td>{{ tx.amount | number:'1.2-2' }} {{ tx.currencyCode }}</td>
+              <td>
+                <span class="pill" [class.pill-high]="tx.riskLevel === 'HIGH'" [class.pill-medium]="tx.riskLevel === 'MEDIUM'" [class.pill-low]="tx.riskLevel === 'LOW'">
+                  {{ tx.riskLevel || 'N/A' }}
+                </span>
+              </td>
+              <td>{{ tx.fraudProbability !== null ? (tx.fraudProbability | number:'1.2-2') : 'N/A' }}</td>
+              <td>{{ tx.status }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <ng-template #noTransactions>
+        <p class="empty-state">No transactions yet.</p>
+      </ng-template>
+    </article>
+  </section>
+</main>
