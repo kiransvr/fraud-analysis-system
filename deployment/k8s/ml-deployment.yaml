@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-ml-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: fraud-ml-service
+  template:
+    metadata:
+      labels:
+        app: fraud-ml-service
+    spec:
+      containers:
+        - name: ml-service
+          image: ghcr.io/your-org/fraud-ml-service:latest
+          ports:
+            - containerPort: 8001
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8001
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fraud-ml-service
+spec:
+  selector:
+    app: fraud-ml-service
+  ports:
+    - protocol: TCP
+      port: 8001
+      targetPort: 8001

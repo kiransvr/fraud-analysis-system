@@ -1,0 +1,75 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: fda-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools18/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "${MSSQL_SA_PASSWORD}", "-C", "-Q", "SELECT 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  ml-service:
+    build:
+      context: ../ml
+    container_name: fda-ml-service
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+
+  init-db:
+    image: mcr.microsoft.com/mssql-tools
+    container_name: fda-init-db
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    volumes:
+      - ../backend/src/main/resources/db/schema.sql:/schema/schema.sql:ro
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "${MSSQL_SA_PASSWORD}" -Q "IF DB_ID('frauddb') IS NULL CREATE DATABASE frauddb;";
+        NEED_SCHEMA=$$(/opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "${MSSQL_SA_PASSWORD}" -d frauddb -h -1 -W -Q "SET NOCOUNT ON; IF OBJECT_ID('customers','U') IS NULL SELECT 1 ELSE SELECT 0;");
+        if [ "$$NEED_SCHEMA" = "1" ]; then
+          /opt/mssql-tools/bin/sqlcmd -S sqlserver -U sa -P "${MSSQL_SA_PASSWORD}" -d frauddb -i /schema/schema.sql;
+        fi
+    restart: "no"
+
+  backend:
+    build:
+      context: ../backend
+    container_name: fda-backend
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:sqlserver://sqlserver:1433;databaseName=frauddb;encrypt=true;trustServerCertificate=true
+      SPRING_DATASOURCE_USERNAME: sa
+      SPRING_DATASOURCE_PASSWORD: ${MSSQL_SA_PASSWORD}
+      ML_SERVICE_BASE_URL: http://ml-service:8001
+      ML_SERVICE_MAX_ATTEMPTS: ${ML_SERVICE_MAX_ATTEMPTS:-3}
+      ML_SERVICE_RETRY_BACKOFF_MS: ${ML_SERVICE_RETRY_BACKOFF_MS:-50}
+    depends_on:
+      init-db:
+        condition: service_completed_successfully
+      ml-service:
+        condition: service_started
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ../frontend
+    container_name: fda-frontend
+    depends_on:
+      - backend
+    ports:
+      - "4200:80"
+
+volumes:
+  sqlserver_data:
