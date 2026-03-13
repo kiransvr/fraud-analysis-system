@@ -89,6 +89,32 @@ $env:E2E_BASE_URL='http://localhost:4200'; npm run e2e
 docker compose -f deployment/docker-compose.yml down --volumes
 ```
 
+## Bulk Data Upload
+
+You can upload transaction batches from the dashboard or directly via API.
+
+- Endpoint: `POST /transactions/upload`
+- Content type: `multipart/form-data`
+- Form field name: `file`
+- Max rows per file: `5000`
+- Optional query param: `replaceExisting=true` to clear current dashboard data before import
+
+Required CSV header:
+
+```text
+externalTransactionId,customerId,deviceId,amount,currencyCode,merchantId,merchantCategory,channel,countryCode,transactionTime
+```
+
+Sample files are included here:
+
+- `docs/samples/transactions-upload-fresh-500.csv` (500 rows)
+
+PowerShell upload example:
+
+```powershell
+curl.exe -X POST "http://localhost:8080/transactions/upload?replaceExisting=true" -F "file=@docs/samples/transactions-upload-fresh-500.csv"
+```
+
 ## Verification Targets
 
 - Model metrics: accuracy >= 92%, recall >= 95%
