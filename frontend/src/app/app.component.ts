@@ -59,6 +59,9 @@ export class AppComponent implements OnInit, OnDestroy {
   transactions: TransactionResponse[] = [];
   alerts: AlertResponse[] = [];
   totalTransactionsCount = 0;
+  transactionPage = 1;
+  transactionPageSize = 20;
+  readonly transactionPageSizeOptions = [10, 20, 50, 100];
   isLoading = false;
   isSubmitting = false;
   isUploading = false;
@@ -97,7 +100,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.errorMessage = '';
     this.isLoading = true;
 
-    const params = new HttpParams().set('limit', '20').set('offset', '0');
+    const offset = (this.transactionPage - 1) * this.transactionPageSize;
+    const params = new HttpParams()
+      .set('limit', String(this.transactionPageSize))
+      .set('offset', String(offset));
 
     this.http.get<TransactionResponse[]>(`${this.apiBase}/transactions`, { params }).subscribe({
       next: (transactions) => {
@@ -114,6 +120,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.http.get<CountResponse>(`${this.apiBase}/transactions/count`).subscribe({
       next: (countResponse) => {
         this.totalTransactionsCount = countResponse.total;
+        if (this.transactionPage > this.totalTransactionPages()) {
+          this.transactionPage = this.totalTransactionPages();
+          this.refreshDashboard();
+        }
       },
       error: () => {
         this.totalTransactionsCount = this.transactions.length;
@@ -197,6 +207,41 @@ export class AppComponent implements OnInit, OnDestroy {
 
   highRiskCount(): number {
     return this.transactions.filter((tx) => tx.riskLevel === 'HIGH').length;
+  }
+
+  totalTransactionPages(): number {
+    return Math.max(1, Math.ceil(this.totalTransactionsCount / this.transactionPageSize));
+  }
+
+  nextTransactionPage(): void {
+    if (this.transactionPage >= this.totalTransactionPages()) {
+      return;
+    }
+    this.transactionPage += 1;
+    this.refreshDashboard();
+  }
+
+  previousTransactionPage(): void {
+    if (this.transactionPage <= 1) {
+      return;
+    }
+    this.transactionPage -= 1;
+    this.refreshDashboard();
+  }
+
+  onTransactionPageSizeChange(): void {
+    this.transactionPage = 1;
+    this.refreshDashboard();
+  }
+
+  transactionRangeLabel(): string {
+    if (this.totalTransactionsCount === 0 || this.transactions.length === 0) {
+      return 'Showing 0 of 0';
+    }
+
+    const start = (this.transactionPage - 1) * this.transactionPageSize + 1;
+    const end = Math.min(start + this.transactions.length - 1, this.totalTransactionsCount);
+    return `Showing ${start}-${end} of ${this.totalTransactionsCount}`;
   }
 
   avgProbability(): string {

@@ -145,7 +145,20 @@
     <article class="panel">
       <div class="panel-title-row">
         <h3>Recent Transactions</h3>
-        <span class="badge">{{ transactions.length }} items</span>
+        <span class="badge">Page {{ transactionPage }} / {{ totalTransactionPages() }}</span>
+      </div>
+      <div class="pagination-row">
+        <label class="pagination-size-label">
+          Rows
+          <select [(ngModel)]="transactionPageSize" (change)="onTransactionPageSizeChange()" name="transactionPageSize">
+            <option *ngFor="let size of transactionPageSizeOptions" [ngValue]="size">{{ size }}</option>
+          </select>
+        </label>
+        <span class="pagination-range">{{ transactionRangeLabel() }}</span>
+        <div class="pagination-actions">
+          <button type="button" class="refresh-button" (click)="previousTransactionPage()" [disabled]="transactionPage <= 1 || isLoading">Previous</button>
+          <button type="button" class="refresh-button" (click)="nextTransactionPage()" [disabled]="transactionPage >= totalTransactionPages() || isLoading">Next</button>
+        </div>
       </div>
       <div class="table-wrap" *ngIf="transactions.length > 0; else noTransactions">
         <table>
