@@ -113,3 +113,6 @@ Use this section as a proposal insert.
 
 ---
 Prepared for client evaluation and procurement discussion.
+
+Companion document for execution detail:
+- See `docs/client-marketing-and-deployment-master-plan.md` for the full A-to-Z marketing, pilot, deployment, and production rollout plan.
