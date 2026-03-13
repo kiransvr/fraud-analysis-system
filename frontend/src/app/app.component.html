@@ -4,14 +4,21 @@
       <p class="eyebrow">AI FRAUD DETECTION ANALYTICS</p>
       <h1>Risk Operations Dashboard</h1>
       <p class="subcopy">Live scoring feed from Spring API + ML model service.</p>
+      <p class="live-status">
+        Live updates: {{ liveUpdatesEnabled ? 'ON' : 'OFF' }}
+        <span *ngIf="lastUpdatedAt">| Last sync: {{ lastUpdatedAt }}</span>
+      </p>
     </div>
-    <button class="refresh-button" (click)="refreshDashboard()" [disabled]="isLoading">Refresh</button>
+    <div class="topbar-actions">
+      <button class="refresh-button" (click)="toggleLiveUpdates()">{{ liveUpdatesEnabled ? 'Pause Live' : 'Resume Live' }}</button>
+      <button class="refresh-button" (click)="refreshDashboard()" [disabled]="isLoading">Refresh</button>
+    </div>
   </header>
 
   <section class="metrics-grid">
     <article class="metric-card metric-primary">
       <p>Total Transactions</p>
-      <h2>{{ transactions.length }}</h2>
+      <h2>{{ totalTransactionsCount }}</h2>
     </article>
     <article class="metric-card metric-warning">
       <p>High Risk</p>
@@ -78,6 +85,27 @@
 
     <p class="status success" *ngIf="successMessage">{{ successMessage }}</p>
     <p class="status error" *ngIf="errorMessage">{{ errorMessage }}</p>
+  </section>
+
+  <section class="panel upload-panel">
+    <div class="panel-title-row">
+      <h3>Bulk CSV Upload</h3>
+      <span class="badge">Up to 5000 rows</span>
+    </div>
+    <p class="upload-help">
+      Upload a CSV with header:
+      externalTransactionId,customerId,deviceId,amount,currencyCode,merchantId,merchantCategory,channel,countryCode,transactionTime
+    </p>
+    <div class="upload-row">
+      <input type="file" accept=".csv,text/csv" (change)="onCsvSelected($event)" />
+      <label class="upload-option">
+        <input type="checkbox" [(ngModel)]="replaceExistingOnUpload" name="replaceExistingOnUpload" />
+        Replace existing dashboard data before import
+      </label>
+      <button type="button" class="upload-button" (click)="uploadCsv()" [disabled]="!selectedCsvFile || isUploading">
+        {{ isUploading ? 'Uploading...' : 'Upload CSV' }}
+      </button>
+    </div>
   </section>
 
   <section class="split-grid">

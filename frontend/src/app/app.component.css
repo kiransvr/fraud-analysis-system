@@ -40,6 +40,11 @@
   margin-bottom: 20px;
 }
 
+.topbar-actions {
+  display: flex;
+  gap: 10px;
+}
+
 .eyebrow {
   margin: 0;
   font-size: 11px;
@@ -56,6 +61,12 @@ h1 {
 
 .subcopy {
   margin: 6px 0 0;
+  color: var(--muted);
+}
+
+.live-status {
+  margin: 8px 0 0;
+  font-size: 12px;
   color: var(--muted);
 }
 
@@ -118,6 +129,46 @@ h1 {
 
 .form-panel {
   margin-bottom: 16px;
+}
+
+.upload-panel {
+  margin-bottom: 16px;
+}
+
+.upload-help {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.upload-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.upload-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.upload-option input {
+  width: auto;
+}
+
+.upload-button {
+  border: 0;
+  background: linear-gradient(135deg, #de7a22, #b95f16);
+  color: #fff;
+  border-radius: 12px;
+  padding: 10px 14px;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 .panel-title-row {
@@ -275,6 +326,16 @@ th {
 
   .topbar {
     flex-direction: column;
+    align-items: stretch;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .upload-row {
     align-items: stretch;
   }
 

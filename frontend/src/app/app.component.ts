@@ -1,6 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { environment } from '../environments/environment';
 
@@ -24,24 +24,50 @@ interface AlertResponse {
   reason: string;
 }
 
+interface BulkUploadError {
+  rowNumber: number;
+  externalTransactionId: string | null;
+  message: string;
+}
+
+interface BulkUploadResponse {
+  totalRows: number;
+  processedRows: number;
+  failedRows: number;
+  alertsCreated: number;
+  errors: BulkUploadError[];
+}
+
+interface CountResponse {
+  total: number;
+}
+
 @Component({
   selector: 'app-root',
   imports: [CommonModule, FormsModule],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   private readonly apiBase = environment.apiBaseUrl;
+  private readonly autoRefreshMs = 5000;
+  private autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
   transactions: TransactionResponse[] = [];
   alerts: AlertResponse[] = [];
+  totalTransactionsCount = 0;
   isLoading = false;
   isSubmitting = false;
+  isUploading = false;
+  selectedCsvFile: File | null = null;
+  replaceExistingOnUpload = true;
+  liveUpdatesEnabled = true;
+  lastUpdatedAt = '';
   errorMessage = '';
   successMessage = '';
 
   transactionForm = {
-    externalTransactionId: 'tx-ui-001',
+    externalTransactionId: `tx-ui-${Date.now()}`,
     customerId: 'cust-ui-001',
     deviceId: 'dev-ui-001',
     amount: 1500,
@@ -56,6 +82,11 @@ export class AppComponent implements OnInit {
 
   ngOnInit(): void {
     this.refreshDashboard();
+    this.startLiveUpdates();
+  }
+
+  ngOnDestroy(): void {
+    this.stopLiveUpdates();
   }
 
   refreshDashboard(): void {
@@ -68,10 +99,20 @@ export class AppComponent implements OnInit {
       next: (transactions) => {
         this.transactions = transactions;
         this.isLoading = false;
+        this.lastUpdatedAt = new Date().toLocaleTimeString();
       },
       error: (error: HttpErrorResponse) => {
         this.isLoading = false;
         this.errorMessage = this.extractError(error, 'Unable to load transactions.');
+      }
+    });
+
+    this.http.get<CountResponse>(`${this.apiBase}/transactions/count`).subscribe({
+      next: (countResponse) => {
+        this.totalTransactionsCount = countResponse.total;
+      },
+      error: () => {
+        this.totalTransactionsCount = this.transactions.length;
       }
     });
 
@@ -83,6 +124,16 @@ export class AppComponent implements OnInit {
         this.errorMessage = this.extractError(error, 'Unable to load alerts.');
       }
     });
+  }
+
+  toggleLiveUpdates(): void {
+    this.liveUpdatesEnabled = !this.liveUpdatesEnabled;
+    if (this.liveUpdatesEnabled) {
+      this.startLiveUpdates();
+      this.refreshDashboard();
+      return;
+    }
+    this.stopLiveUpdates();
   }
 
   submitTransaction(): void {
@@ -100,6 +151,42 @@ export class AppComponent implements OnInit {
       error: (error: HttpErrorResponse) => {
         this.isSubmitting = false;
         this.errorMessage = this.extractError(error, 'Transaction submission failed.');
+      }
+    });
+  }
+
+  onCsvSelected(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.selectedCsvFile = input.files && input.files.length > 0 ? input.files[0] : null;
+  }
+
+  uploadCsv(): void {
+    if (!this.selectedCsvFile) {
+      this.errorMessage = 'Please choose a CSV file before uploading.';
+      return;
+    }
+
+    this.successMessage = '';
+    this.errorMessage = '';
+    this.isUploading = true;
+
+    const formData = new FormData();
+    formData.append('file', this.selectedCsvFile);
+
+    const params = new HttpParams().set('replaceExisting', String(this.replaceExistingOnUpload));
+
+    this.http.post<BulkUploadResponse>(`${this.apiBase}/transactions/upload`, formData, { params }).subscribe({
+      next: (response) => {
+        this.isUploading = false;
+        this.selectedCsvFile = null;
+
+        const firstError = response.errors.length > 0 ? ` First error: ${response.errors[0].message}` : '';
+        this.successMessage = `Uploaded ${response.processedRows}/${response.totalRows} rows. Failed: ${response.failedRows}. Alerts: ${response.alertsCreated}.${firstError}`;
+        this.refreshDashboard();
+      },
+      error: (error: HttpErrorResponse) => {
+        this.isUploading = false;
+        this.errorMessage = this.extractError(error, 'CSV upload failed.');
       }
     });
   }
@@ -124,5 +211,23 @@ export class AppComponent implements OnInit {
       return message;
     }
     return fallback;
+  }
+
+  private startLiveUpdates(): void {
+    this.stopLiveUpdates();
+    this.autoRefreshTimer = setInterval(() => {
+      if (!this.liveUpdatesEnabled || this.isSubmitting || this.isUploading) {
+        return;
+      }
+      this.refreshDashboard();
+    }, this.autoRefreshMs);
+  }
+
+  private stopLiveUpdates(): void {
+    if (!this.autoRefreshTimer) {
+      return;
+    }
+    clearInterval(this.autoRefreshTimer);
+    this.autoRefreshTimer = null;
   }
 }
