@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:sqlserver://localhost:1433;databaseName=frauddb;encrypt=true;trustServerCertificate=true}
+    username: ${SPRING_DATASOURCE_USERNAME:sa}
+    password: ${SPRING_DATASOURCE_PASSWORD:ChangeMeStrong!123}
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.SQLServerDialect
+    open-in-view: false
+  sql:
+    init:
+      mode: never
+      schema-locations: classpath:db/schema.sql
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+
+ml:
+  service:
+    base-url: ${ML_SERVICE_BASE_URL:http://localhost:8001}
+    max-attempts: ${ML_SERVICE_MAX_ATTEMPTS:3}
+    backoff-ms: ${ML_SERVICE_RETRY_BACKOFF_MS:50}
