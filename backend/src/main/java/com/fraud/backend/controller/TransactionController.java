@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
+import com.fraud.backend.api.BulkUploadResponse;
 import com.fraud.backend.api.TransactionRequest;
 import com.fraud.backend.api.TransactionResponse;
 import com.fraud.backend.service.FraudService;
@@ -17,6 +19,7 @@ import com.fraud.backend.service.FraudService;
 import jakarta.validation.Valid;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/transactions")
@@ -34,6 +37,13 @@ public class TransactionController {
         return fraudService.createAndScoreTransaction(request);
     }
 
+    @PostMapping("/upload")
+    public BulkUploadResponse uploadTransactions(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(defaultValue = "false") boolean replaceExisting) {
+        return fraudService.uploadTransactionsCsv(file, replaceExisting);
+    }
+
     @GetMapping("/{externalTransactionId}")
     public TransactionResponse getTransaction(@PathVariable String externalTransactionId) {
         return fraudService.getTransaction(externalTransactionId);
@@ -47,5 +57,10 @@ public class TransactionController {
         int normalizedLimit = Math.max(1, Math.min(limit, 100));
         int normalizedOffset = Math.max(0, offset);
         return fraudService.listTransactions(normalizedLimit, normalizedOffset, riskLevel);
+    }
+
+    @GetMapping("/count")
+    public Map<String, Long> countTransactions() {
+        return Map.of("total", fraudService.countTransactions());
     }
 }

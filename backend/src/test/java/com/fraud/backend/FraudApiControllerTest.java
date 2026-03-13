@@ -1,9 +1,11 @@
 package com.fraud.backend;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -18,9 +20,12 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.fraud.backend.api.AlertResponse;
+import com.fraud.backend.api.BulkUploadError;
+import com.fraud.backend.api.BulkUploadResponse;
 import com.fraud.backend.api.PredictResponse;
 import com.fraud.backend.api.TransactionResponse;
 import com.fraud.backend.controller.AlertController;
@@ -146,5 +151,33 @@ class FraudApiControllerTest {
                 .andExpect(status().isInternalServerError())
                 .andExpect(jsonPath("$.error").value("Internal Server Error"))
                 .andExpect(jsonPath("$.message").value("ML service unavailable"));
+    }
+
+    @Test
+    void uploadTransactionsReturnsSummary() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "transactions.csv",
+                "text/csv",
+                "externalTransactionId,customerId,deviceId,amount,currencyCode,merchantId,merchantCategory,channel,countryCode,transactionTime\n"
+                        .getBytes());
+
+        BulkUploadResponse response = new BulkUploadResponse(
+                10,
+                8,
+                2,
+                3,
+                List.of(new BulkUploadError(4, "tx-004", "Duplicate transaction ID")));
+        given(fraudService.uploadTransactionsCsv(any(), anyBoolean())).willReturn(response);
+
+        mockMvc.perform(multipart("/transactions/upload")
+                        .file(file)
+                        .param("replaceExisting", "true"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalRows").value(10))
+                .andExpect(jsonPath("$.processedRows").value(8))
+                .andExpect(jsonPath("$.failedRows").value(2))
+                .andExpect(jsonPath("$.alertsCreated").value(3))
+                .andExpect(jsonPath("$.errors[0].externalTransactionId").value("tx-004"));
     }
 }

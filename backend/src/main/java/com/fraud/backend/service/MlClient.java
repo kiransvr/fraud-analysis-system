@@ -2,6 +2,7 @@ package com.fraud.backend.service;
 
 import java.math.BigDecimal;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -16,6 +17,7 @@ public class MlClient {
     private final int maxPredictAttempts;
     private final long retryBackoffMs;
 
+    @Autowired
     public MlClient(RestClient mlRestClient, MlServiceProperties properties) {
         this.restClient = mlRestClient;
         this.maxPredictAttempts = properties.maxAttemptsOrDefault();

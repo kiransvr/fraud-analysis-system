@@ -177,6 +177,15 @@ public class FraudRepository {
                 metadataJson);
     }
 
+    public void clearOperationalData() {
+        jdbcTemplate.update("DELETE FROM fraud_alerts");
+        jdbcTemplate.update("DELETE FROM transactions");
+        jdbcTemplate.update("DELETE FROM audit_logs");
+        jdbcTemplate.update("DELETE FROM devices");
+        jdbcTemplate.update("DELETE FROM customers");
+        jdbcTemplate.update("DELETE FROM model_versions");
+    }
+
     public List<AlertResponse> findAlerts() {
         RowMapper<AlertResponse> mapper = (rs, rowNum) -> new AlertResponse(
                 rs.getLong("id"),
@@ -194,6 +203,11 @@ public class FraudRepository {
                 ORDER BY a.created_at DESC
                 """,
                 mapper);
+    }
+
+    public long countTransactions() {
+        Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM transactions", Long.class);
+        return count == null ? 0L : count;
     }
 
             public Optional<TransactionResponse> findTransactionByExternalId(String externalTransactionId) {

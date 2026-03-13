@@ -27,6 +27,16 @@ public class ApiExceptionHandler {
                 "message", message);
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Map<String, Object> handleIllegalArgument(IllegalArgumentException ex) {
+        return Map.of(
+                "timestamp", OffsetDateTime.now().toString(),
+                "status", 400,
+                "error", "Bad Request",
+                "message", ex.getMessage());
+    }
+
     @ExceptionHandler(Exception.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Map<String, Object> handleGeneric(Exception ex) {
