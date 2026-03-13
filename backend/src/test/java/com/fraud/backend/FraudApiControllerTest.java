@@ -22,6 +22,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import com.fraud.backend.api.AlertResponse;
 import com.fraud.backend.api.BulkUploadError;
@@ -30,13 +31,15 @@ import com.fraud.backend.api.PredictResponse;
 import com.fraud.backend.api.TransactionResponse;
 import com.fraud.backend.controller.AlertController;
 import com.fraud.backend.controller.ApiExceptionHandler;
+import com.fraud.backend.controller.EventController;
 import com.fraud.backend.controller.PredictionController;
 import com.fraud.backend.controller.TransactionController;
+import com.fraud.backend.service.EventStreamService;
 import com.fraud.backend.service.FraudService;
 
 import java.util.Objects;
 
-@WebMvcTest(controllers = { TransactionController.class, PredictionController.class, AlertController.class })
+@WebMvcTest(controllers = { TransactionController.class, PredictionController.class, AlertController.class, EventController.class })
 @Import(ApiExceptionHandler.class)
 class FraudApiControllerTest {
 
@@ -45,6 +48,9 @@ class FraudApiControllerTest {
 
     @MockBean
     private FraudService fraudService;
+
+        @MockBean
+        private EventStreamService eventStreamService;
 
     @Test
     void predictReturnsScoredResponse() throws Exception {
@@ -180,4 +186,18 @@ class FraudApiControllerTest {
                 .andExpect(jsonPath("$.alertsCreated").value(3))
                 .andExpect(jsonPath("$.errors[0].externalTransactionId").value("tx-004"));
     }
+
+        @Test
+        void streamEventsReturnsSseEndpoint() throws Exception {
+                given(eventStreamService.subscribe()).willReturn(new SseEmitter());
+
+                mockMvc.perform(get("/events/stream"))
+                                .andExpect(status().isOk())
+                                .andExpect(result -> {
+                                        String contentType = result.getResponse().getContentType();
+                                        if (contentType == null || !contentType.startsWith(MediaType.TEXT_EVENT_STREAM_VALUE)) {
+                                                throw new AssertionError("Expected text/event-stream content type but was: " + contentType);
+                                        }
+                                });
+        }
 }

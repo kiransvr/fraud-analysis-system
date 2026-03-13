@@ -115,6 +115,14 @@ PowerShell upload example:
 curl.exe -X POST "http://localhost:8080/transactions/upload?replaceExisting=true" -F "file=@docs/samples/transactions-upload-fresh-500.csv"
 ```
 
+## Live Dashboard Updates
+
+The dashboard now uses push-based updates over Server-Sent Events (SSE), with periodic polling as a fallback.
+
+- SSE endpoint: `GET /events/stream`
+- Event types: `transaction-scored`, `bulk-upload`
+- Dashboard behavior: automatically refreshes tables/metrics when events are received
+
 ## Verification Targets
 
 - Model metrics: accuracy >= 92%, recall >= 95%

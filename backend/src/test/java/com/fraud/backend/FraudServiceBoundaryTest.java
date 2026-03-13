@@ -20,6 +20,7 @@ import com.fraud.backend.api.PredictResponse;
 import com.fraud.backend.api.TransactionRequest;
 import com.fraud.backend.api.TransactionResponse;
 import com.fraud.backend.repository.FraudRepository;
+import com.fraud.backend.service.EventStreamService;
 import com.fraud.backend.service.FraudService;
 import com.fraud.backend.service.MlClient;
 import com.fraud.backend.service.MlClient.MlPrediction;
@@ -33,9 +34,12 @@ class FraudServiceBoundaryTest {
     @Mock
     private MlClient mlClient;
 
+    @Mock
+    private EventStreamService eventStreamService;
+
     @Test
     void predictMapsExactPointFourToMedium() {
-        FraudService fraudService = new FraudService(repository, mlClient);
+        FraudService fraudService = new FraudService(repository, mlClient, eventStreamService);
         PredictRequest request = new PredictRequest(new BigDecimal("4000.00"), "cust-001", "dev-001", "retail", "web", "US");
 
         given(mlClient.predict(any())).willReturn(new MlPrediction(0.40d, "baseline-0.1"));
@@ -47,7 +51,7 @@ class FraudServiceBoundaryTest {
 
     @Test
     void predictMapsExactPointSevenFiveToHigh() {
-        FraudService fraudService = new FraudService(repository, mlClient);
+        FraudService fraudService = new FraudService(repository, mlClient, eventStreamService);
         PredictRequest request = new PredictRequest(new BigDecimal("7500.00"), "cust-001", "dev-001", "retail", "web", "US");
 
         given(mlClient.predict(any())).willReturn(new MlPrediction(0.75d, "baseline-0.1"));
@@ -59,7 +63,7 @@ class FraudServiceBoundaryTest {
 
     @Test
     void createAndScoreTransactionAtPointFourDoesNotCreateAlert() {
-        FraudService fraudService = new FraudService(repository, mlClient);
+        FraudService fraudService = new FraudService(repository, mlClient, eventStreamService);
         TransactionRequest request = new TransactionRequest(
                 "tx-bnd-040",
                 "cust-040",
@@ -97,7 +101,7 @@ class FraudServiceBoundaryTest {
 
     @Test
     void createAndScoreTransactionAtPointSevenFiveCreatesAlert() {
-        FraudService fraudService = new FraudService(repository, mlClient);
+        FraudService fraudService = new FraudService(repository, mlClient, eventStreamService);
         TransactionRequest request = new TransactionRequest(
                 "tx-bnd-075",
                 "cust-075",

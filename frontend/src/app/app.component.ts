@@ -50,8 +50,11 @@ interface CountResponse {
 })
 export class AppComponent implements OnInit, OnDestroy {
   private readonly apiBase = environment.apiBaseUrl;
-  private readonly autoRefreshMs = 5000;
+  private readonly fallbackRefreshMs = 15000;
+  private readonly sseReconnectMs = 3000;
   private autoRefreshTimer: ReturnType<typeof setInterval> | null = null;
+  private sseReconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private eventSource: EventSource | null = null;
 
   transactions: TransactionResponse[] = [];
   alerts: AlertResponse[] = [];
@@ -62,6 +65,7 @@ export class AppComponent implements OnInit, OnDestroy {
   selectedCsvFile: File | null = null;
   replaceExistingOnUpload = true;
   liveUpdatesEnabled = true;
+  liveConnectionMode: 'push' | 'polling' | 'offline' = 'offline';
   lastUpdatedAt = '';
   errorMessage = '';
   successMessage = '';
@@ -215,19 +219,86 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private startLiveUpdates(): void {
     this.stopLiveUpdates();
+
+    this.connectEventStream();
     this.autoRefreshTimer = setInterval(() => {
       if (!this.liveUpdatesEnabled || this.isSubmitting || this.isUploading) {
         return;
       }
       this.refreshDashboard();
-    }, this.autoRefreshMs);
+    }, this.fallbackRefreshMs);
   }
 
   private stopLiveUpdates(): void {
     if (!this.autoRefreshTimer) {
+      this.clearSseReconnectTimer();
+      this.closeEventStream();
+      this.liveConnectionMode = 'offline';
       return;
     }
     clearInterval(this.autoRefreshTimer);
     this.autoRefreshTimer = null;
+    this.clearSseReconnectTimer();
+    this.closeEventStream();
+    this.liveConnectionMode = 'offline';
+  }
+
+  private connectEventStream(): void {
+    this.closeEventStream();
+
+    this.eventSource = new EventSource(`${this.apiBase}/events/stream`);
+    this.eventSource.addEventListener('connected', () => {
+      this.liveConnectionMode = 'push';
+    });
+    this.eventSource.addEventListener('transaction-scored', () => {
+      this.handlePushEvent();
+    });
+    this.eventSource.addEventListener('bulk-upload', () => {
+      this.handlePushEvent();
+    });
+    this.eventSource.onerror = () => {
+      this.liveConnectionMode = this.liveUpdatesEnabled ? 'polling' : 'offline';
+      this.closeEventStream();
+      this.scheduleSseReconnect();
+    };
+  }
+
+  private handlePushEvent(): void {
+    if (!this.liveUpdatesEnabled || this.isSubmitting || this.isUploading) {
+      return;
+    }
+    this.refreshDashboard();
+  }
+
+  private scheduleSseReconnect(): void {
+    if (!this.liveUpdatesEnabled || this.sseReconnectTimer) {
+      return;
+    }
+
+    this.sseReconnectTimer = setTimeout(() => {
+      this.sseReconnectTimer = null;
+      if (!this.liveUpdatesEnabled) {
+        return;
+      }
+      this.connectEventStream();
+    }, this.sseReconnectMs);
+  }
+
+  private closeEventStream(): void {
+    if (!this.eventSource) {
+      return;
+    }
+
+    this.eventSource.close();
+    this.eventSource = null;
+  }
+
+  private clearSseReconnectTimer(): void {
+    if (!this.sseReconnectTimer) {
+      return;
+    }
+
+    clearTimeout(this.sseReconnectTimer);
+    this.sseReconnectTimer = null;
   }
 }

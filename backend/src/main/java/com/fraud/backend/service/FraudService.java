@@ -33,10 +33,12 @@ public class FraudService {
 
     private final FraudRepository repository;
     private final MlClient mlClient;
+    private final EventStreamService eventStreamService;
 
-    public FraudService(FraudRepository repository, MlClient mlClient) {
+    public FraudService(FraudRepository repository, MlClient mlClient, EventStreamService eventStreamService) {
         this.repository = repository;
         this.mlClient = mlClient;
+        this.eventStreamService = eventStreamService;
     }
 
     public PredictResponse predict(PredictRequest request) {
@@ -49,6 +51,11 @@ public class FraudService {
 
     @Transactional
     public TransactionResponse createAndScoreTransaction(TransactionRequest request) {
+        return createAndScoreTransaction(request, true);
+    }
+
+    @Transactional
+    private TransactionResponse createAndScoreTransaction(TransactionRequest request, boolean publishEvent) {
         long customerId = repository.upsertCustomer(request.customerId());
         Long deviceId = repository.upsertDevice(request.deviceId());
 
@@ -93,6 +100,10 @@ public class FraudService {
                 "transaction",
                 request.externalTransactionId(),
                 "{\"risk\":\"" + prediction.riskLevel() + "\",\"probability\":" + prediction.probability() + "}");
+
+        if (publishEvent) {
+            eventStreamService.publishTransactionScored(request.externalTransactionId(), prediction.riskLevel());
+        }
 
         return new TransactionResponse(
                 request.externalTransactionId(),
@@ -166,7 +177,7 @@ public class FraudService {
 
                 try {
                     TransactionRequest request = parseCsvLine(normalized);
-                    TransactionResponse response = createAndScoreTransaction(request);
+                    TransactionResponse response = createAndScoreTransaction(request, false);
                     processedRows++;
                     if (response.alertId() != null) {
                         alertsCreated++;
@@ -183,6 +194,7 @@ public class FraudService {
         }
 
         int failedRows = totalRows - processedRows;
+        eventStreamService.publishBulkUpload(processedRows, failedRows, alertsCreated);
         return new BulkUploadResponse(totalRows, processedRows, failedRows, alertsCreated, errors);
     }
 

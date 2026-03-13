@@ -6,6 +6,7 @@
       <p class="subcopy">Live scoring feed from Spring API + ML model service.</p>
       <p class="live-status">
         Live updates: {{ liveUpdatesEnabled ? 'ON' : 'OFF' }}
+        <span *ngIf="liveUpdatesEnabled">| Mode: {{ liveConnectionMode === 'push' ? 'Push (SSE)' : (liveConnectionMode === 'polling' ? 'Polling fallback' : 'Connecting') }}</span>
         <span *ngIf="lastUpdatedAt">| Last sync: {{ lastUpdatedAt }}</span>
       </p>
     </div>
