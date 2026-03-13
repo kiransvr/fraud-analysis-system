@@ -1,0 +1,16 @@
+# Backend build outputs
+backend/target/
+
+# Frontend dependencies and build artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
+
+# Python caches
+**/__pycache__/
+*.py[cod]
+ml/.pytest_cache/
+
+# Local environment files
+deployment/.env
